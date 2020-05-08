@@ -1,36 +1,40 @@
-# :muscle: codingame-ts-starter
+# :muscle: codingame-spring-challenge-2020
 
-> Typescript starter template for CodinGame challenges
-
-**Features**
-- [TypeScript](https://www.typescriptlang.org)
-- Module bundling and minification with [Parcel](https://parceljs.org)
-- Testing with [Jest](https://jestjs.io)
-- Code formatting with [Prettier](https://prettier.io)
-- [VSCode](https://code.visualstudio.com) integrations
+> Typescript solutuion for CodinGame Spring Challenge 2020
 
 ## Installation
-
-1. `git clone` this repo
-2. Run `npm install` in the project folder
-
-You also need [CodinGame Sync](https://www.codingame.com/blog/new-feature-codingame-sync-use-your-own-code-editor-on-codingame/) to synchronize your local code with the CodinGame editor.
+1. Run `yarn install` in the project folder
 
 ## Usage
 
-Run either `npm start` or `npm run build` to generate the output file, then start the CodinGame Sync tool and choose to sync the `dist/index.js` file.
+Run either `yarn start` or `yarn run build` to generate the output file, then start the CodinGame Sync tool and choose to sync the `dist/index.js` file.
 
 ### Commands
 
-- `npm start`: build your code in watch mode (it will automatically recompile on change).
-  Note that in this mode code size optimizations are NOT performed, use `npm run build` for that.
-- `npm run build`: build your code once, with tree-shaking and minification
-- `npm run test`: run unit tests once
-- `npm run test:watch`: run unit tests in watch mode
-- `npm run prettify`: reformat all your code automatically
+- `yarn start`: build your code in watch mode (it will automatically recompile on change).
+  Note that in this mode code size optimizations are NOT performed, use `yarn run build` for that.
+- `yarn run build`: build your code once, with tree-shaking and minification
+- `yarn run test`: run unit tests once
+- `yarn run test:watch`: run unit tests in watch mode
+- `yarn run prettify`: reformat all your code automatically
 
 ### VSCode integrations
 
-All NPM scripts are mapped to VSCode tasks, and the build shortcut is mapped to the `npm run build` command.
+All NPM scripts are mapped to VSCode tasks, and the build shortcut is mapped to the `yarn run build` command.
 
 A launch configuration is also ready-to-use to debug your tests with breakpoints support within VSCode.
+
+## Features
+
+- Each Pac tries to go for the closest most valuable Pellet
+
+## Known Issues
+
+- Pacs end up going for the same Pellets
+- Pacs get stuck on each other
+- Pacs don't handle there being no Pellets in line of sight
+
+## TODO List
+
+- Send Pacs for different Pellets
+- Add Rock, Paper, Scisors mechanics
