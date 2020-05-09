@@ -1714,7 +1714,7 @@ coa@^2.0.2:
     chalk "^2.4.1"
     q "^1.1.2"
 
-"codingame-js-starter@file:..\\codingame-ts-tools\\":
+"codingame-js-starter@file:../codingame-ts-tools":
   version "1.0.0"
 
 collect-v8-coverage@^1.0.0:

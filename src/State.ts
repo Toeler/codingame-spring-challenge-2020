@@ -149,7 +149,7 @@ export class State {
 	private deleteEatenPellets() {
 		const pacLocations = [...this.myPacs.values()].map((pac) => pac.location.toString());
 		const visibleCellSets = pacLocations.map((pacLocation) => this.visibleCells.get(pacLocation));
-		const visibleCells = new Set(visibleCellSets.reduce((arr, set) => [...arr, ...[...set.values()].map((point) => point.toString())], [] as string[]));
+		const visibleCells = new Set(pacLocations.concat(visibleCellSets.reduce((arr, set) => [...arr, ...[...set.values()].map((point) => point.toString())], [] as string[])));
 		for (let visibleCell of visibleCells) {
 			const pellet = this.allPellets.get(visibleCell);
 			if (pellet && pellet.age > 0) {
