@@ -3,7 +3,8 @@
 > Typescript solutuion for CodinGame Spring Challenge 2020
 
 ## Installation
-1. Run `yarn install` in the project folder
+1. Clone https://github.com/Volcomix/codingame-ts-tools
+2. Run `yarn install` in the this project's folder
 
 ## Usage
 

@@ -10,10 +10,6 @@ export function readString(): string {
 	return readline();
 }
 
-export function readStrings(): string[] {
-	return readline().split(' ');
-}
-
-export function readStringLine(): string[] {
-	return readline().split('');
+export function readStrings(separator: string = ' '): string[] {
+	return readline().split(separator);
 }

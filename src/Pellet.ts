@@ -1,11 +1,16 @@
 import { Entity } from "./Entity";
-import { Location } from "./Location";
+import { Point } from "./Point";
 
 export class Pellet extends Entity {
 	value: number;
 
-	update(inputs: number[]): void {
-		this.location = new Location(inputs[0], inputs[1]);
-		this.value = inputs[2];
+	update(location: Point, value: number): void {
+		this.location = location;
+		this.value = value;
+		this.resetAge();
+	}
+
+	public getValue() {
+		return this.value - this.age;
 	}
 }

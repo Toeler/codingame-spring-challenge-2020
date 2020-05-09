@@ -1714,6 +1714,9 @@ coa@^2.0.2:
     chalk "^2.4.1"
     q "^1.1.2"
 
+"codingame-js-starter@file:..\\codingame-ts-tools\\":
+  version "1.0.0"
+
 collect-v8-coverage@^1.0.0:
   version "1.0.1"
   resolved "https://registry.yarnpkg.com/collect-v8-coverage/-/collect-v8-coverage-1.0.1.tgz#cc2c8e94fc18bbdffe64d6534570c8a673b27f59"

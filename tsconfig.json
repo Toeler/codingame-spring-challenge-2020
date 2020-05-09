@@ -9,6 +9,7 @@
     ]
   },
   "include": [
-    "src/**/*.ts"
+    "src/**/*.ts",
+    "node_modules/codingame-js-starter/src/lib/collections/bit-grid.ts"
   ]
 }

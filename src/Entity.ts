@@ -1,9 +1,16 @@
-import { Location } from "./Location";
+import { Point } from "./Point";
 
 export abstract class Entity {
-	location: Location;
+	location: Point;
+	age: number;
 
-	abstract update(inputs: any[]): void;
+	increaseAge() {
+		this.age++;
+	}
+
+	resetAge() {
+		this.age = 0;
+	}
 
 	distanceTo(otherEntity: Entity) {
 		return this.location.distanceTo(otherEntity.location);

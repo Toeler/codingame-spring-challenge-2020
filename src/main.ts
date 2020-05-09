@@ -1,49 +1,43 @@
-import { World } from "./World";
-import { readInts, readInt, readStrings } from "./util";
-import { Pac } from "./Pac";
-import { Pellet } from "./Pellet";
+import { State } from "./State";
+import { Timer } from "./Timer";
+import { Game } from "./Game";
+
+function printErrTurnTimes(turnTimes: number[]) {
+	let sum = 0;
+	let maxTurnTime: number;
+	let maxTurn: number;
+	for (let [idx, time] of turnTimes.entries()) {
+		sum += time;
+		if (!maxTurnTime || time > maxTurnTime) {
+			maxTurnTime = time;
+			maxTurn = idx + 1;
+		}
+	}
+	printErr(`Mean: ${sum / turnTimes.length}ms. Max: Turn ${maxTurn} (${maxTurnTime}ms)`);
+}
 
 export function run() {
-	const world = new World();
+	const state = new State();
 
-	world.initFromConsole();
+	state.initFromConsole();
 
+	const turnTimes: number[] = [];
+	let turn = 0;
 	while(true) {
-		const [myScore, opponentScore] = readInts();
-		const pacs: Pac[] = [];
-		const pellets: Pellet[] = [];
+		const timer = new Timer(`Turn ${++turn}`).start();
 
-		const visiblePacCount = readInt();
-		for (let i = 0; i < visiblePacCount; i++) {
-			const pac = pacs[i] || (pacs[i] = new Pac());
-			pac.update(readStrings());
+		if (turn === 1) {
+			state.initFirstTurnFromConsole();
+		} else {
+			state.updateFromConsole();
 		}
 
-		const visiblePelletCount = readInt();
-		for (let i = 0; i < visiblePelletCount; i++) {
-			const pellet = pellets[i] || (pellets[i] = new Pellet());
-			pellet.update(readInts());
-		}
+		const actions = new Game().getActions(state);
+		print(actions.map(action => action.toString()).join('|'));
 
-		const myPacs = pacs.filter((pac) => pac.isCurrentPlayer);
-		let moves: string[] = [];
-		for (let pac of myPacs) {
-			const highestValues = pellets.reduce((highestValues, next) => {
-				if (!highestValues.length || highestValues[0].value < next.value) {
-					return [next];
-				} else if (highestValues[0].value === next.value) {
-					highestValues.push(next);
-					return highestValues;
-				}
-			}, [] as Pellet[]);
-			highestValues.sort((a, b) => {
-				return pac.distanceTo(a) - pac.distanceTo(b);
-			});
-			if (highestValues.length === 0) {
-				printErr('Could not find any pellets');
-			}
-			moves.push(pac.moveTo(highestValues[0]));
-		}
-		print(moves.join('|'));
+		state.age();
+
+		turnTimes.push(timer.stop());
+		printErrTurnTimes(turnTimes);
 	}
 }

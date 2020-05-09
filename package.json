@@ -13,6 +13,7 @@
     "devDependencies": {
         "@types/jest": "^25.2.1",
         "@types/node": "^13.13.5",
+        "codingame-js-starter": "file:..\\codingame-ts-tools\\",
         "jest": "^26.0.1",
         "parcel-bundler": "^1.9.7",
         "prettier": "^2.0.5",
@@ -31,6 +32,12 @@
         "testRegex": "(/__tests__/.*|(\\.|/)(test|spec))\\.(js|ts)$",
         "transform": {
             "^.+\\.ts$": "ts-jest"
-        }
+        },
+        "transformIgnorePatterns": [
+            "node_modules/((?!codingame-js-starter))"
+        ],
+        "setupFiles": [
+            "./.jest/globals.js"
+        ]
     }
 }
