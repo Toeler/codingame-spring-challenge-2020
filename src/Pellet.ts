@@ -11,6 +11,6 @@ export class Pellet extends Entity {
 	}
 
 	public getValue() {
-		return this.value - this.age;
+		return Math.max(2, (this.value * 10) - this.age);
 	}
 }

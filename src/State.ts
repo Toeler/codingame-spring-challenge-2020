@@ -5,6 +5,7 @@ import { getVisibleCells } from './getVisibleCells';
 import { Pac } from './Pac';
 import { Pellet } from './Pellet';
 import { Timer } from './Timer';
+import { getNeighbouringCells } from './getNeighbouringCells';
 
 const CELL_STRING_SEPARATOR = '';
 const CELL_FLOOR_CHAR = ' ';
@@ -17,6 +18,7 @@ export class State {
 	height: number;
 	grid: BitGrid;
 	visibleCells: Map<string, Set<Point>>;
+	neighbouringCells: Map<string, Set<Point>>;
 
 	myScore: number;
 	opponentScore: number;
@@ -41,11 +43,13 @@ export class State {
 		initTimer.stop();
 		const visibleCellsTimer = new Timer('Walkable Cells Initialisation').start();
 		this.visibleCells = new Map<string, Set<Point>>();
+		this.neighbouringCells = new Map<string, Set<Point>>();
 		for (let y = 0; y < this.height; y++) {
 			for (let x = 0; x < this.width; x++) {
 				if (this.grid.get(x, y)) { // isWalkable
 					const point = new Point(x, y);
 					this.visibleCells.set(point.toString(), getVisibleCells(this.grid, this.width, this.height, point));
+					this.neighbouringCells.set(point.toString(), getNeighbouringCells(this.grid, this.width, this.height, point));
 				}
 			}
 		}
