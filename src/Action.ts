@@ -12,6 +12,10 @@ export class Action {
 		return new Action(ActionType.Move, pacId, point.toString());
 	}
 
+	public static Speed(pacId: number): Action {
+		return new Action(ActionType.Speed, pacId, '');
+	}
+
 	public equalTo(otherAction: Action) {
 		printErr(`Compare ${this.toString()} to ${otherAction.toString()} = ${this.type === otherAction.type && this.action === otherAction.action}`)
 		return this.type === otherAction.type && this.action === otherAction.action;

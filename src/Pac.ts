@@ -22,4 +22,8 @@ export class Pac extends Entity {
 	moveTo(point: Point): Action {
 		return Action.Move(this.id, point);
 	}
+
+	startSpeed(): Action {
+		return Action.Speed(this.id);
+	}
 }

@@ -68,31 +68,35 @@ export class Game {
 		for (let pac of state.myPacs.values()) {
 			let pacTimer = new Timer(`Pac ${pac.id} turn`);
 
-			const pacMatrix: number[][] = [];
-			for (let y = 0; y < state.height; y++) {
-				pacMatrix[y] = [];
-				for (let x = 0; x < state.width; x++) {
-					pacMatrix[y][x] = 0;
-				}
-			}
-			const NUMBER_TURNS_TO_CONSIDER = 20;
-			const checkedCells = new Set<string>();
-			getPacScoreMatrix(pac, state, pacMatrix, pelletMatrix, 0, NUMBER_TURNS_TO_CONSIDER, checkedCells, [pac.location]);
-			pacMatrices.push({ id: pac.id, matrix: pacMatrix });
-
-			let highestValueDirection: Point;
-			let action: Action = pac.moveTo(pac.location);
-			for (let neighbour of state.neighbouringCells.get(pac.location.toString())) {
-				const neighbourValue = pacMatrix[neighbour.y][neighbour.x];
-				if (!highestValueDirection || neighbourValue > pacMatrix[highestValueDirection.y][highestValueDirection.x]) {
-					const newAction = pac.moveTo(neighbour);
-					if (actions.every((otherPacAction) => !newAction.equalTo(otherPacAction))) {
-						highestValueDirection = neighbour;
-						action = newAction;
+			if (pac.abilityCooldown === 0) {
+				actions.push(pac.startSpeed());
+			} else {
+				const pacMatrix: number[][] = [];
+				for (let y = 0; y < state.height; y++) {
+					pacMatrix[y] = [];
+					for (let x = 0; x < state.width; x++) {
+						pacMatrix[y][x] = 0;
 					}
 				}
+				const NUMBER_TURNS_TO_CONSIDER = 20;
+				const checkedCells = new Set<string>();
+				getPacScoreMatrix(pac, state, pacMatrix, pelletMatrix, 0, NUMBER_TURNS_TO_CONSIDER, checkedCells, [pac.location]);
+				pacMatrices.push({ id: pac.id, matrix: pacMatrix });
+
+				let highestValueDirection: Point;
+				let action: Action = pac.moveTo(pac.location);
+				for (let neighbour of state.neighbouringCells.get(pac.location.toString())) {
+					const neighbourValue = pacMatrix[neighbour.y][neighbour.x];
+					if (!highestValueDirection || neighbourValue > pacMatrix[highestValueDirection.y][highestValueDirection.x]) {
+						const newAction = pac.moveTo(neighbour);
+						if (actions.every((otherPacAction) => !newAction.equalTo(otherPacAction))) {
+							highestValueDirection = neighbour;
+							action = newAction;
+						}
+					}
+				}
+				actions.push(action);
 			}
-			actions.push(action);
 			pacTimer.stop();
 		}
 		timer.stop();
