@@ -17,7 +17,6 @@ export class Action {
 	}
 
 	public equalTo(otherAction: Action) {
-		printErr(`Compare ${this.toString()} to ${otherAction.toString()} = ${this.type === otherAction.type && this.action === otherAction.action}`)
 		return this.type === otherAction.type && this.action === otherAction.action;
 	}
 }

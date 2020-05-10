@@ -28,14 +28,19 @@ export class State {
 	enemyPacs: Map<number, Pac>;
 	allPellets: Map<string, Pellet>;
 
+	gridMatrix: number[][];
+
 	initFromConsole(): void {
-		const initTimer = new Timer('Grid Initialisation').start();
 		[this.width, this.height] = readInts();
+		const initTimer = new Timer('Grid Initialisation').start();
 		this.grid = new BitGrid(this.width, this.height);
+		this.gridMatrix = [];
 		for (let y = 0; y < this.height; y++) {
 			const cells = readStrings(CELL_STRING_SEPARATOR);
+			this.gridMatrix[y] = [];
 			for (let [x, cell] of cells.entries()) {
 				this.grid.set(x, y, cell === CELL_FLOOR_CHAR);
+				this.gridMatrix[y][x] = (cell === CELL_FLOOR_CHAR) ? 0 : -1;
 			}
 		}
 		this.myPacs = new Map<number, Pac>();
@@ -61,9 +66,12 @@ export class State {
 		return this.grid.get(x, y);
 	}
 
-	initFirstTurnFromConsole(): void {
-		[this.myScore, this.opponentScore] = readInts();
+	getGridMatrix(): number[][] {
+		return JSON.parse(JSON.stringify(this.gridMatrix));
+	}
 
+	initFirstTurnFromConsole(): void {
+		const timer = new Timer('First Turn Setup');
 		const visiblePacCount = readInt();
 		for (let i = 0; i < visiblePacCount; i++) {
 			const inputs = readStrings();
@@ -102,18 +110,20 @@ export class State {
 				pellet.update(point, inputs[2]);
 			}
 		}
+		timer.stop();
 	}
 
 	updateFromConsole(): void {
-		this.updateScores();
+		const timer = new Timer('Inputs Update').start();
 		this.updateVisiblePacs();
 		this.updateVisiblePellets();
 		this.deleteMyDeadPacs();
 		this.deleteEnemyDeadPacs();
 		this.deleteEatenPellets();
+		timer.stop();
 	}
 
-	private updateScores(): void {
+	public updateScores(): void {
 		[this.myScore, this.opponentScore] = readInts();
 	}
 

@@ -24,8 +24,8 @@ export function run() {
 	const turnTimes: number[] = [];
 	let turn = 0;
 	while(true) {
+		state.updateScores(); // Read something before we start the turn timer so it is accurate
 		const timer = new Timer(`Turn ${++turn}`).start();
-
 		if (turn === 1) {
 			state.initFirstTurnFromConsole();
 		} else {
