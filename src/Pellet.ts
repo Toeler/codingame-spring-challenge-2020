@@ -1,6 +1,8 @@
 import { Entity } from "./Entity";
 import { Point } from "./Point";
 
+const DEAD_END_MULTIPLIER = 5.0;
+
 export class Pellet extends Entity {
 	value: number;
 
@@ -10,7 +12,8 @@ export class Pellet extends Entity {
 		this.resetAge();
 	}
 
-	public getValue() {
-		return Math.max(2, (this.value * 10) - this.age);
+	public getValue(isDeadEnd?: boolean) {
+		const value = (this.value * 10) - this.age;
+		return Math.max(2, value * (isDeadEnd ? DEAD_END_MULTIPLIER : 1));
 	}
 }

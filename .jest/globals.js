@@ -1,1 +1,0 @@
-global.printErr = (object) => console.log(object);

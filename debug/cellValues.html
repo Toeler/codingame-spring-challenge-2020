@@ -1,0 +1,168 @@
+<html>
+	<head>
+		<style>
+			body {
+				width: 100%;
+				height: 100%;
+			}
+
+			.row {
+				width: 100%;
+				display: flex;
+				margin-bottom: 10px;
+			}
+
+			.input-area {
+				flex: 1;
+			}
+			.input-area textarea {
+				width: 100%;
+				height: 100%;
+			}
+
+			.display-grid {
+				width: 1000px;
+			}
+
+			table {
+				width: 100%;
+				table-layout: fixed;
+			}
+
+			td {
+				width: 10px;
+				height: 10px;
+			}
+		</style>
+		<script>
+			function hslToRgb(h, s, l){
+				var r, g, b;
+
+				if(s == 0){
+					r = g = b = l; // achromatic
+				}else{
+					function hue2rgb(p, q, t){
+						if(t < 0) t += 1;
+						if(t > 1) t -= 1;
+						if(t < 1/6) return p + (q - p) * 6 * t;
+						if(t < 1/2) return q;
+						if(t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+						return p;
+					}
+
+					var q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+					var p = 2 * l - q;
+					r = hue2rgb(p, q, h + 1/3);
+					g = hue2rgb(p, q, h);
+					b = hue2rgb(p, q, h - 1/3);
+				}
+
+				return [Math.floor(r * 255), Math.floor(g * 255), Math.floor(b * 255)];
+}
+
+			function numberToColorHsl(i) {
+				// as the function expects a value between 0 and 1, and red = 0° and green = 120°
+				// we convert the input to the appropriate hue value
+				var hue = i * 1.2 / 360;
+				// we convert hsl to rgb (saturation 100%, lightness 50%)
+				var rgb = hslToRgb(hue, 1, .5);
+				// we format to css value and return
+				return 'rgb(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ')'; 
+			}
+
+			function spreadLines() {
+				const string = document.getElementById('pellet-values').getElementsByTagName('textarea')[0].value;
+				if (string) {
+					const split = string.split('\n').map((str) => str.includes(': ') ? str.split(': ')[1] : str);
+					for (let i = 1; i < split.length; i++) {
+						document.getElementById(`bot-${i}-values`).getElementsByTagName('textarea')[0].value = split[i];
+					}
+					document.getElementById('pellet-values').getElementsByTagName('textarea')[0].value = split[0];
+				}
+				buildGrid('pellet-values');
+			}
+
+			function buildGrid(selector) {
+				const container = document.getElementById(selector).getElementsByClassName('display-grid')[0];
+				const table = document.createElement('table');
+				while (container.firstChild) {
+					container.firstChild.remove();
+				}
+				const string = document.getElementById(selector).getElementsByTagName('textarea')[0].value;
+				if (!string) {
+					return;
+				}
+				const decoded = atob(string);
+				const matrix = JSON.parse(decoded);
+
+				const highestValue = matrix.reduce((highestValue, row) => {
+					const rowHighestValue = row.reduce((highestValue, next) => next > highestValue ? next : highestValue, 0);
+					return rowHighestValue > highestValue ? rowHighestValue : highestValue;
+				}, 0);
+
+				container.appendChild(table);
+				for (let y = 0; y < matrix.length; y++) {
+					const tr = document.createElement('tr');
+					table.appendChild(tr);
+					for (let x = 0; x < matrix[y].length; x++) {
+						const element = document.createElement('td');
+						element.style.backgroundColor = matrix[y][x] === 0 ? 'rgb(150, 0, 0)' : numberToColorHsl((matrix[y][x] / highestValue) * 100);
+						element.style.border = '1px solid black';
+						element.textContent = matrix[y][x];
+						tr.appendChild(element);
+					}
+				}
+			}
+		</script>
+	</head>
+	<body>
+		<div id="pellet-values" class="row">
+			<div class="input-area">
+				<textarea oninput="spreadLines()"></textarea>
+			</div>
+			<div class="display-grid">
+
+			</div>
+		</div>
+		<div id="bot-1-values" class="row">
+			<div class="input-area">
+				<textarea onchange="buildGrid('bot-1-values')"></textarea>
+			</div>
+			<div class="display-grid">
+
+			</div>
+		</div>
+		<div id="bot-2-values" class="row">
+			<div class="input-area">
+				<textarea onchange="buildGrid('bot-2-values')"></textarea>
+			</div>
+			<div class="display-grid">
+
+			</div>
+		</div>
+		<div id="bot-3-values" class="row">
+			<div class="input-area">
+				<textarea onchange="buildGrid('bot-3-values')"></textarea>
+			</div>
+			<div class="display-grid">
+
+			</div>
+		</div>
+		<div id="bot-4-values" class="row">
+			<div class="input-area">
+				<textarea onchange="buildGrid('bot-4-values')"></textarea>
+			</div>
+			<div class="display-grid">
+
+			</div>
+		</div>
+		<div id="bot-5-values" class="row">
+			<div class="input-area">
+				<textarea onchange="buildGrid('bot-5-values')"></textarea>
+			</div>
+			<div class="display-grid">
+
+			</div>
+		</div>
+	</body>
+</html>

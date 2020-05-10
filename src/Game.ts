@@ -5,6 +5,7 @@ import { Point } from "./Point";
 import { wrap } from "./util/wrap";
 import { findPath } from "./astar/findPath";
 import { Timer } from "./Timer";
+import { debug } from "./util/debug";
 
 function getPelletsInRange(center: Point, pellets: Map<string, Pellet>, mapWidth: number, mapHeight: number, distance: number): Pellet[] {
 	const result: Pellet[] = [];
@@ -19,14 +20,25 @@ function getPelletsInRange(center: Point, pellets: Map<string, Pellet>, mapWidth
 	return result;
 }
 
+function getPelletScoreMatrix(allPellets: Map<string, Pellet>, neighbouringCells: Map<string, Set<Point>>, gridWidth: number, gridHeight: number): number[][] {
+	const matrix: number[][] = [];
+	for (let y = 0; y < gridHeight; y++) {
+		matrix[y] = [];
+		for (let x = 0; x < gridWidth; x++) {
+			const pellet = allPellets.get(Point.toString(x, y));
+			matrix[y][x] = pellet ? pellet.getValue(neighbouringCells.get(pellet.location.toString()).size === 1) : 0;
+		}
+	}
+	return matrix;
+}
+
 export class Game {
 	public getActions(state: State): Action[] {
-		return this.getActions3(state);
-		return this.getActions2(state);
-	}
-
-	public getActions3(state: State): Action[] {
 		let timer = new Timer(`getActions`);
+
+		const matrix = getPelletScoreMatrix(state.allPellets, state.neighbouringCells, state.width, state.height);
+		debug(`Pellet Value Graph: ${Buffer.from(JSON.stringify(matrix)).toString('base64')}`);
+
 		const actions: Action[] = [];
 		for (let pac of state.myPacs.values()) {
 			let pacTimer = new Timer(`Pac ${pac.id} turn`);
@@ -34,7 +46,7 @@ export class Game {
 			if (!nearbyPellets.length) {
 				nearbyPellets = getPelletsInRange(pac.location, state.allPellets, state.width, state.height, 18);
 				if (!nearbyPellets.length) {
-					printErr(`Could not find any pellets for Pac ${pac.id}`);
+					debug(`Could not find any pellets for Pac ${pac.id}`);
 				}
 			}
 
@@ -56,30 +68,6 @@ export class Game {
 			pacTimer.stop();
 		}
 		timer.stop();
-		return actions;
-	}
-
-	public getActions2(state: State): Action[] {
-		const actions: Action[] = [];
-		for (let pac of state.myPacs.values()) {
-			const highestValues = [...state.allPellets.values()].reduce((highestValues, next) => {
-				if (!highestValues.length || highestValues[0].value < next.value) {
-					return [next];
-				} else if (highestValues[0].value === next.value) {
-					highestValues.push(next);
-					return highestValues;
-				}
-				return highestValues;
-			}, [] as Pellet[]);
-			highestValues.sort((a, b) => {
-				return pac.distanceTo(a) - pac.distanceTo(b);
-			});
-			if (highestValues.length === 0) {
-				printErr('Could not find any pellets. allPellets:');
-				printErr(state.allPellets);
-			}
-			actions.push(pac.moveTo(highestValues[0].location));
-		}
 		return actions;
 	}
 }

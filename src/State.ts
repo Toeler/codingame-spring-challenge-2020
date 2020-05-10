@@ -6,6 +6,7 @@ import { Pac } from './Pac';
 import { Pellet } from './Pellet';
 import { Timer } from './Timer';
 import { getNeighbouringCells } from './getNeighbouringCells';
+import { debug } from './util/debug';
 
 const CELL_STRING_SEPARATOR = '';
 const CELL_FLOOR_CHAR = ' ';
@@ -75,7 +76,7 @@ export class State {
 				const enemyPac = new Pac();
 				inputs[1] = ENEMY_ID;
 				inputs[2] = (this.width - parseInt(inputs[2]) - 1).toString();
-				printErr(`Created enemy pac ${inputs[0]} at position ${inputs[2]} ${inputs[3]}`)
+				debug(`Created enemy pac ${inputs[0]} at position ${inputs[2]} ${inputs[3]}`)
 				enemyPac.update(inputs);
 				this.enemyPacs.set(pacId, enemyPac);
 			}
@@ -140,7 +141,7 @@ export class State {
 	private deleteMyDeadPacs() {
 		for (let pac of this.myPacs.values()) {
 			if (pac.age > 0) {
-				printErr(`Deleted dead pac ${pac.id}`);
+				debug(`Deleted dead pac ${pac.id}`);
 				this.myPacs.delete(pac.id);
 			}
 		}
@@ -157,7 +158,7 @@ export class State {
 		for (let visibleCell of visibleCells) {
 			const pellet = this.allPellets.get(visibleCell);
 			if (pellet && pellet.age > 0) {
-				printErr(`Deleting pellet ${visibleCell}`);
+				debug(`Deleting pellet ${visibleCell}`);
 				this.allPellets.delete(visibleCell);
 			}
 		}

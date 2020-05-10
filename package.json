@@ -35,9 +35,6 @@
         },
         "transformIgnorePatterns": [
             "node_modules/((?!codingame-js-starter))"
-        ],
-        "setupFiles": [
-            "./.jest/globals.js"
         ]
     }
 }
