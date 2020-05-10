@@ -11,4 +11,9 @@ export class Action {
 	public static Move(pacId: number, point: Point): Action {
 		return new Action(ActionType.Move, pacId, point.toString());
 	}
+
+	public equalTo(otherAction: Action) {
+		printErr(`Compare ${this.toString()} to ${otherAction.toString()} = ${this.type === otherAction.type && this.action === otherAction.action}`)
+		return this.type === otherAction.type && this.action === otherAction.action;
+	}
 }

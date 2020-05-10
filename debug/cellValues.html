@@ -1,5 +1,6 @@
 <html>
 	<head>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/pako/1.0.10/pako.min.js"></script>
 		<style>
 			body {
 				width: 100%;
@@ -21,7 +22,7 @@
 			}
 
 			.display-grid {
-				width: 1000px;
+				width: 1500px;
 			}
 
 			table {
@@ -30,12 +31,12 @@
 			}
 
 			td {
-				width: 10px;
-				height: 10px;
+				width: 20px;
+				height: 20px;
 			}
 		</style>
 		<script>
-			function hslToRgb(h, s, l){
+			function hslToRgb(h, s, l) {
 				var r, g, b;
 
 				if(s == 0){
@@ -58,7 +59,7 @@
 				}
 
 				return [Math.floor(r * 255), Math.floor(g * 255), Math.floor(b * 255)];
-}
+			}
 
 			function numberToColorHsl(i) {
 				// as the function expects a value between 0 and 1, and red = 0° and green = 120°
@@ -88,9 +89,13 @@
 				while (container.firstChild) {
 					container.firstChild.remove();
 				}
-				const string = document.getElementById(selector).getElementsByTagName('textarea')[0].value;
+				let string = document.getElementById(selector).getElementsByTagName('textarea')[0].value;
 				if (!string) {
 					return;
+				}
+				string.replace('\n', '');
+				if (string.includes(': ')) {
+					string = string.split(': ')[1];
 				}
 				const decoded = atob(string);
 				const matrix = JSON.parse(decoded);
@@ -106,9 +111,10 @@
 					table.appendChild(tr);
 					for (let x = 0; x < matrix[y].length; x++) {
 						const element = document.createElement('td');
-						element.style.backgroundColor = matrix[y][x] === 0 ? 'rgb(150, 0, 0)' : numberToColorHsl((matrix[y][x] / highestValue) * 100);
+						element.style.backgroundColor = matrix[y][x] === 0 ? 'rgb(0, 0, 0)' : matrix[y][x] === -1 ? 'rgb(0, 0, 150)' : numberToColorHsl((matrix[y][x] / highestValue) * 100);
 						element.style.border = '1px solid black';
-						element.textContent = matrix[y][x];
+						element.textContent = parseInt(matrix[y][x]).toFixed(2);
+						element.title = `${x}, ${y} - ${matrix[y][x]}`;
 						tr.appendChild(element);
 					}
 				}

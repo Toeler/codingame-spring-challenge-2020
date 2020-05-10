@@ -3,9 +3,10 @@ import { Action } from "./Action";
 import { Pellet } from "./Pellet";
 import { Point } from "./Point";
 import { wrap } from "./util/wrap";
-import { findPath } from "./astar/findPath";
 import { Timer } from "./Timer";
 import { debug } from "./util/debug";
+import { Pac } from "./Pac";
+import { deflateSync } from 'zlib';
 
 function getPelletsInRange(center: Point, pellets: Map<string, Pellet>, mapWidth: number, mapHeight: number, distance: number): Pellet[] {
 	const result: Pellet[] = [];
@@ -32,42 +33,81 @@ function getPelletScoreMatrix(allPellets: Map<string, Pellet>, neighbouringCells
 	return matrix;
 }
 
+function getPacScoreMatrix(pac: Pac, state: State, matrix: number[][], pelletScoreMatrix: number[][], currentDepth: number, maxDepth: number, checkedPoints: Set<string>, nextPointsToCheck: Point[]): void {
+	if (currentDepth >= maxDepth || !nextPointsToCheck.length) {
+		return;
+	}
+
+	const neighbours = nextPointsToCheck.map((point) => {
+		const pointNeighbours = state.neighbouringCells.get(point.toString());
+		return [...pointNeighbours.values()].filter((cell) => !checkedPoints.has(cell.toString()));
+	}).reduce((flattened, neighbourNeighbours) => [...flattened, ...neighbourNeighbours], [] as Point[]);
+
+	getPacScoreMatrix(pac, state, matrix, pelletScoreMatrix, currentDepth + 1, maxDepth, new Set([...checkedPoints.values(), ...nextPointsToCheck.map((point) => point.toString())]), neighbours);
+
+	if (currentDepth !== 0) {
+		for (const point of nextPointsToCheck) {
+			const neighbours = [...state.neighbouringCells.get(point.toString()).values()];
+			const neighbourSum = neighbours.reduce((sum, neighbour) => sum + matrix[neighbour.y][neighbour.x], 0);
+			const pelletValueForPac = Math.max(0.1, pelletScoreMatrix[point.y][point.x] - (currentDepth*0.3));
+			matrix[point.y][point.x] = (pelletValueForPac + (neighbourSum / neighbours.length));
+		}
+	} else {
+		matrix[nextPointsToCheck[0].y][nextPointsToCheck[0].x] = -1;
+	}
+}
+
 export class Game {
 	public getActions(state: State): Action[] {
 		let timer = new Timer(`getActions`);
 
-		const matrix = getPelletScoreMatrix(state.allPellets, state.neighbouringCells, state.width, state.height);
-		debug(`Pellet Value Graph: ${Buffer.from(JSON.stringify(matrix)).toString('base64')}`);
+		const pelletMatrix = getPelletScoreMatrix(state.allPellets, state.neighbouringCells, state.width, state.height);
 
+		const pacMatrices: { id: number, matrix: number[][]}[] = [];
 		const actions: Action[] = [];
 		for (let pac of state.myPacs.values()) {
 			let pacTimer = new Timer(`Pac ${pac.id} turn`);
-			let nearbyPellets = getPelletsInRange(pac.location, state.allPellets, state.width, state.height, 10);
-			if (!nearbyPellets.length) {
-				nearbyPellets = getPelletsInRange(pac.location, state.allPellets, state.width, state.height, 18);
-				if (!nearbyPellets.length) {
-					debug(`Could not find any pellets for Pac ${pac.id}`);
-				}
-			}
 
-			let mostValuableTarget: Pellet;
-			let mostValuableScore: number;
-			for (let pellet of nearbyPellets) {
-				const path = findPath(state.grid, state.width, state.height, state.neighbouringCells, pac.location, pellet.location);
-				const score = path.reduce((total, nextPoint) => {
-					const cellPellet = state.allPellets.get(nextPoint.toString());
-					const cellValue = cellPellet ? cellPellet.getValue() : 0;
-					return total - 1 + cellValue;
-				}, 0);
-				if (!mostValuableScore || score > mostValuableScore) {
-					mostValuableScore = score;
-					mostValuableTarget = pellet;
+			const pacMatrix: number[][] = [];
+			for (let y = 0; y < state.height; y++) {
+				pacMatrix[y] = [];
+				for (let x = 0; x < state.width; x++) {
+					pacMatrix[y][x] = 0;
 				}
 			}
-			actions.push(pac.moveTo(mostValuableTarget.location));
+			const NUMBER_TURNS_TO_CONSIDER = 20;
+			const checkedCells = new Set<string>();
+			getPacScoreMatrix(pac, state, pacMatrix, pelletMatrix, 0, NUMBER_TURNS_TO_CONSIDER, checkedCells, [pac.location]);
+			pacMatrices.push({ id: pac.id, matrix: pacMatrix });
+
+			let highestValueDirection: Point;
+			let action: Action = pac.moveTo(pac.location);
+			for (let neighbour of state.neighbouringCells.get(pac.location.toString())) {
+				const neighbourValue = pacMatrix[neighbour.y][neighbour.x];
+				if (!highestValueDirection || neighbourValue > pacMatrix[highestValueDirection.y][highestValueDirection.x]) {
+					const newAction = pac.moveTo(neighbour);
+					if (actions.every((otherPacAction) => !newAction.equalTo(otherPacAction))) {
+						highestValueDirection = neighbour;
+						action = newAction;
+					}
+				}
+			}
+			actions.push(action);
 			pacTimer.stop();
 		}
 		timer.stop();
+
+		// debug(`Pellet Value Graph: ${Buffer.from(JSON.stringify(pelletMatrix)).toString('base64')}`);
+		// debug(`Pellet Value Graph: ${JSON.stringify(pelletMatrix).toString()}`);
+		for (const matrix of pacMatrices) {
+			if (matrix.id !== 2) {
+				continue;
+			}
+			debug(`Pac ${matrix.id} Value Graph: ${Buffer.from(JSON.stringify(matrix.matrix.map((row) => row.map((cell) => cell.toPrecision(2))))).toString('base64')}`);
+			// debug(`Pac ${matrix.id} Value Graph: ${JSON.stringify(matrix.matrix.map((row) => row.map((cell) => cell.toPrecision(2)))).toString()}`);
+		}
+
+
 		return actions;
 	}
 }
