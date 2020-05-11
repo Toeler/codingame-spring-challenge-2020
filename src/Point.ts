@@ -2,9 +2,9 @@ export class Point {
 	constructor(public x: number, public y: number) {}
 
 	public distanceTo(otherLocation: Point) {
-		const a = this.x - otherLocation.x;
-		const b = this.y - otherLocation.y;
-		return Math.hypot(a, b);
+		const x = this.x - otherLocation.x;
+		const y = this.y - otherLocation.y;
+		return Math.abs(x) + Math.abs(y);
 	}
 
 	public equals(other: Point): boolean {
