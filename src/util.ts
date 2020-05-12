@@ -11,5 +11,5 @@ export function readString(): string {
 }
 
 export function readStrings(separator: string = ' '): string[] {
-	return readline().split(separator);
+	return readString().split(separator);
 }

@@ -27,4 +27,8 @@ export class Pac extends Entity {
 	startSpeed(): Action {
 		return Action.Speed(this.id);
 	}
+
+	switchType(type: PacType): Action {
+		return Action.Switch(this.id, type);
+	}
 }

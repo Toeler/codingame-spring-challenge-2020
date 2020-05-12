@@ -1,5 +1,6 @@
 import { ActionType } from "./ActionType";
 import { Point } from "./Point";
+import { PacType } from "./PacType";
 
 export class Action {
 	constructor(public type: ActionType, public pacId: number, public action: string) {}
@@ -14,6 +15,10 @@ export class Action {
 
 	public static Speed(pacId: number): Action {
 		return new Action(ActionType.Speed, pacId, '');
+	}
+
+	public static Switch(pacId: number, type: PacType): Action {
+		return new Action(ActionType.Switch, pacId, type);
 	}
 
 	public equalTo(otherAction: Action) {

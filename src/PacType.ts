@@ -1,7 +1,8 @@
 export enum PacType {
 	ROCK = 'ROCK',
 	PAPER = 'PAPER',
-	SCISSORS = 'SCISSORS'
+	SCISSORS = 'SCISSORS',
+	DEAD = 'DEAD'
 };
 
 export namespace PacType {

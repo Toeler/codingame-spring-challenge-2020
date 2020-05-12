@@ -31,11 +31,10 @@ A launch configuration is also ready-to-use to debug your tests with breakpoints
 
 ## Known Issues
 
-- Pacs end up going for the same Pellets
-- Pacs get stuck on each other
-- Pacs don't handle there being no Pellets in line of sight
-
 ## TODO List
 
-- Send Pacs for different Pellets
-- Add Rock, Paper, Scisors mechanics
+- Fix my pacs following each other
+- Actively avoid enemy pacs that will eat us
+- Don't go into a one-way path if an enemy of the opposite type is near us
+- Disincentivise one-way paths where you can see no pellet at the start (dead-ends with corners in them)
+- Chase and Eat enemy pacs

@@ -7,6 +7,7 @@ import { Pellet } from './Pellet';
 import { Timer } from './Timer';
 import { getNeighbouringCells } from './getNeighbouringCells';
 import { debug } from './util/debug';
+import { PacType } from './PacType';
 
 const CELL_STRING_SEPARATOR = '';
 const CELL_FLOOR_CHAR = ' ';
@@ -20,6 +21,8 @@ export class State {
 	grid: BitGrid;
 	visibleCells: Map<string, Set<Point>>;
 	neighbouringCells: Map<string, Set<Point>>;
+
+	turn: number;
 
 	myScore: number;
 	opponentScore: number;
@@ -72,6 +75,7 @@ export class State {
 
 	initFirstTurnFromConsole(): void {
 		const timer = new Timer('First Turn Setup');
+		this.turn = 1;
 		const visiblePacCount = readInt();
 		for (let i = 0; i < visiblePacCount; i++) {
 			const inputs = readStrings();
@@ -115,11 +119,16 @@ export class State {
 
 	updateFromConsole(): void {
 		const timer = new Timer('Inputs Update').start();
+		this.turn++;
 		this.updateVisiblePacs();
 		this.updateVisiblePellets();
-		this.deleteMyDeadPacs();
-		this.deleteEnemyDeadPacs();
-		this.deleteEatenPellets();
+		// this.deleteMyDeadPacs();
+		// this.deleteEnemyDeadPacs();
+		const pacLocations = [...this.myPacs.values()].map((pac) => pac.location.toString());
+		const visibleCellSets = pacLocations.map((pacLocation) => this.visibleCells.get(pacLocation));
+		const visibleCells = new Set(pacLocations.concat(visibleCellSets.reduce((arr, set) => [...arr, ...[...set.values()].map((point) => point.toString())], [] as string[])));
+		this.tryUpdateInvisiblePacs(visibleCells);
+		this.deleteEatenPellets(visibleCells);
 		timer.stop();
 	}
 
@@ -133,8 +142,15 @@ export class State {
 			const inputs = readStrings();
 			const pacId = parseInt(inputs[0]);
 			const isMyPac = inputs[1] === MY_ID;
+			const isDead = inputs[4] as PacType === PacType.DEAD;
 			const pac = isMyPac ? this.myPacs.get(pacId) : this.enemyPacs.get(pacId);
-			pac.update(inputs);
+			if (isDead) {
+				if (pac) {
+					isMyPac ? this.myPacs.delete(pacId) : this.enemyPacs.delete(pacId)
+				}
+			} else {
+				pac.update(inputs);
+			}
 		}
 	}
 
@@ -144,6 +160,9 @@ export class State {
 			const inputs = readInts();
 			const point = new Point(inputs[0], inputs[1]);
 			const pellet = this.allPellets.get(point.toString());
+			if (!pellet) {
+				printErr(`No pellet at ${point}`);
+			}
 			pellet.update(point, inputs[2]);
 		}
 	}
@@ -161,10 +180,22 @@ export class State {
 		// TODO
 	}
 
-	private deleteEatenPellets() {
-		const pacLocations = [...this.myPacs.values()].map((pac) => pac.location.toString());
-		const visibleCellSets = pacLocations.map((pacLocation) => this.visibleCells.get(pacLocation));
-		const visibleCells = new Set(pacLocations.concat(visibleCellSets.reduce((arr, set) => [...arr, ...[...set.values()].map((point) => point.toString())], [] as string[])));
+	private tryUpdateInvisiblePacs(visibleCells: Set<string>) {
+		for (let enemy of [...this.enemyPacs.values()].filter((enemy) => enemy.age === 1)) {
+			let possibleNeighbours = [...this.neighbouringCells.get(enemy.location.toString()).values()];
+			if (enemy.speedTurnsLeft > 0) {
+				possibleNeighbours = [...possibleNeighbours, ...possibleNeighbours.reduce((neighbourNeighbours, neighbour) => [...neighbourNeighbours, ...this.neighbouringCells.get(neighbour.toString()).values()], [] as Point[])];
+			}
+			const possibleCellsWeCantSee = possibleNeighbours.filter((neighbour) => !visibleCells.has(neighbour.toString()));
+			if (possibleCellsWeCantSee.length === 1) {
+				printErr(`Enemy ${enemy.id} could only have gone to ${possibleCellsWeCantSee[0]}... updating`);
+				enemy.location = possibleCellsWeCantSee[0];
+				enemy.speedTurnsLeft = Math.max(0, enemy.speedTurnsLeft - 1); // TODO: Extract this out and re-calc everyone
+			}
+		}
+	}
+
+	private deleteEatenPellets(visibleCells: Set<string>) {
 		for (let visibleCell of visibleCells) {
 			const pellet = this.allPellets.get(visibleCell);
 			if (pellet && pellet.age > 0) {

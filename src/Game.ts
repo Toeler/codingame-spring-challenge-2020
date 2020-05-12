@@ -5,6 +5,7 @@ import { Point } from "./Point";
 import { wrap } from "./util/wrap";
 import { Timer } from "./Timer";
 import { Pac } from "./Pac";
+import { PacType } from "./PacType";
 
 const ENEMY_INFLUENCE_RADIUS = 3.0;
 const MAX_ENEMY_AGE_INFLUENCE = 10;
@@ -81,13 +82,26 @@ export class Game {
 
 		const pelletMatrix = getPelletScoreMatrix(state.getGridMatrix(), state.allPellets, state.neighbouringCells, state.width, state.height);
 
+		const enemyPacs = [...state.enemyPacs.values()];
 		const pacMatrices: { id: number, matrix: number[][]}[] = [];
 		const actions: Action[] = [];
 		for (let pac of state.myPacs.values()) {
 			const pacTimer = new Timer(`Pac ${pac.id} turn`);
 
+			let neighbours: Point[] = [...state.neighbouringCells.get(pac.location.toString()).values()];
+			let nearbyEnemies: Pac[] = enemyPacs.filter((enemy) => neighbours.some((point) => point.equals(enemy.location)));
 			if (pac.abilityCooldown === 0) {
-				actions.push(pac.startSpeed());
+				if (nearbyEnemies.length) {
+					// TODO: handle more than 1 nearby enemy
+					printErr(`${nearbyEnemies.length} nearby enemies`);
+					if (nearbyEnemies[0].typeId !== PacType.opposite(pac.typeId)) {
+						actions.push(pac.switchType(PacType.opposite(nearbyEnemies[0].typeId)));
+					} else {
+						actions.push(pac.moveTo(nearbyEnemies[0].location));
+					}
+				} else {
+					actions.push(pac.startSpeed());
+				}
 			} else {
 				const pacMatrix: number[][] = state.getGridMatrix();
 				const NUMBER_TURNS_TO_CONSIDER = 30;
@@ -97,10 +111,22 @@ export class Game {
 
 				let highestValueDirection: Point;
 				let action: Action = pac.moveTo(pac.location);
-				let neighbours: Point[] = [...state.neighbouringCells.get(pac.location.toString()).values()];
 				if (pac.speedTurnsLeft > 0) {
 					// We're moving 2 spaces
-					neighbours = neighbours.map((neighbour) => state.neighbouringCells.get(neighbour.toString())).reduce((allNeighbours, neighbour) => [...allNeighbours, ...neighbour.values()], [] as Point[]);
+					// TODO: Move this up out of the else so we can attack 2 spaces
+					neighbours = neighbours.map((neighbour) => {
+						const nextNeighbours = [...state.neighbouringCells.get(neighbour.toString())].filter((nextNeighbour) => !nextNeighbour.equals(pac.location));
+						if (nextNeighbours.length === 0) {
+							// Dead-end, so include this single-step move
+							return [neighbour];
+						}
+						for (const nextNeighbour of nextNeighbours) {
+							// If we are movng through a point to another, then the second point should include the value of the one we pass through
+							pacMatrix[nextNeighbour.y][nextNeighbour.x] += pelletMatrix[neighbour.y][neighbour.x];
+							//pacMatrix[nextNeighbour.y][nextNeighbour.x] += pacMatrix[neighbour.y][neighbour.x];
+						}
+						return nextNeighbours;
+					}).reduce((allNeighbours, neighbour) => [...allNeighbours, ...neighbour.values()], [] as Point[]);
 				}
 				for (let neighbour of neighbours) {
 					const neighbourValue = pacMatrix[neighbour.y][neighbour.x];
@@ -120,7 +146,7 @@ export class Game {
 
 		// debug(`Pellet Value Graph: ${Buffer.from(JSON.stringify(pelletMatrix)).toString('base64')}`);
 		for (const matrix of pacMatrices) {
-			if (matrix.id !== 0) {
+			if (matrix.id !== 4 || state.turn < 80) {
 				continue;
 			}
 			// const pac2 = state.myPacs.get(2);
@@ -128,7 +154,7 @@ export class Game {
 			// 	continue;
 			// }
 			// printErr(`Pellet Value Graph: ${Buffer.from(JSON.stringify(pelletMatrix)).toString('base64')}`);
-			printErr(`Pac ${matrix.id} Value Graph: ${Buffer.from(JSON.stringify(matrix.matrix.map((row) => row.map((cell) => cell.toFixed(0))))).toString('base64')}`);
+			// printErr(`Pac ${matrix.id} Value Graph: ${Buffer.from(JSON.stringify(matrix.matrix.map((row) => row.map((cell) => cell.toFixed(0))))).toString('base64')}`);
 		}
 
 
