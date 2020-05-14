@@ -33,8 +33,9 @@ A launch configuration is also ready-to-use to debug your tests with breakpoints
 
 ## TODO List
 
-- Fix my pacs following each other
+- Pre-calcualte all possible neighbour trees to speed up turn calcs
 - Actively avoid enemy pacs that will eat us
 - Don't go into a one-way path if an enemy of the opposite type is near us
 - Disincentivise one-way paths where you can see no pellet at the start (dead-ends with corners in them)
 - Chase and Eat enemy pacs
+- Switch to beat enemy when 1 space away

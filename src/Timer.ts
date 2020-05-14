@@ -1,18 +1,39 @@
+import { performance, PerformanceObserver } from 'perf_hooks';
 import { debug } from "./util/debug";
 
 export class Timer {
 	#start: [number, number];
-	constructor(protected name: string) {}
+	#startName: string;
+	#endName: string;
+	constructor(protected name: string) {
+		this.#startName = `${this.name} - Start`;
+		this.#endName = `${this.name} - End`;
+		const obs = new PerformanceObserver((list) => {
+			const entry = list.getEntriesByName(this.name)[0];
+			if (!entry) {
+				return;
+			}
+			debug(`${this.name} took ${entry.duration}ms`);
+			obs.disconnect();
+			performance.clearMarks(this.#startName);
+			performance.clearMarks(this.#endName);
+		});
+		obs.observe({ entryTypes: ['mark', 'measure']});
+		this.start();
+	}
 
 	start(): Timer {
-		this.#start = process.hrtime();
+		performance.mark(this.#startName);
 		return this;
 	}
 
 	stop(): number {
-		const end = process.hrtime(this.#start);
-		const elapsedMs = end[1] / 1000000;
-		debug(`${this.name} took ${elapsedMs}ms`);
-		return elapsedMs;
+		performance.mark(this.#endName);
+		performance.measure(this.name, this.#startName, this.#endName);
+		// const measure = performance.getEntriesByName(this.name)[0];
+		// const elapsedMs = measure.duration;
+		// debug(`${this.name} took ${elapsedMs}ms`);
+		// return elapsedMs;
+		return 0;
 	}
 }

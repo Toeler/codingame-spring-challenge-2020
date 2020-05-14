@@ -25,7 +25,7 @@ export function run() {
 	let turn = 0;
 	while(true) {
 		state.updateScores(); // Read something before we start the turn timer so it is accurate
-		const timer = new Timer(`Turn ${++turn}`).start();
+		const timer = new Timer(`Turn ${++turn}`);
 		if (turn === 1) {
 			state.initFirstTurnFromConsole();
 		} else {
@@ -33,11 +33,12 @@ export function run() {
 		}
 
 		const actions = new Game().getActions(state);
+		timer.stop();
 		print(actions.map(action => action.toString()).join('|'));
 
 		state.age();
 
-		turnTimes.push(timer.stop());
-		printErrTurnTimes(turnTimes);
+		//turnTimes.push(timer.stop());
+		//printErrTurnTimes(turnTimes);
 	}
 }

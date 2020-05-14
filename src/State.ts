@@ -32,25 +32,29 @@ export class State {
 	allPellets: Map<string, Pellet>;
 
 	gridMatrix: number[][];
+	influenceMatrix: number[][];
 
 	initFromConsole(): void {
 		[this.width, this.height] = readInts();
-		const initTimer = new Timer('Grid Initialisation').start();
+		const initTimer = new Timer('Grid Initialisation');
 		this.grid = new BitGrid(this.width, this.height);
 		this.gridMatrix = [];
+		this.influenceMatrix = [];
 		for (let y = 0; y < this.height; y++) {
 			const cells = readStrings(CELL_STRING_SEPARATOR);
 			this.gridMatrix[y] = [];
+			this.influenceMatrix[y] = [];
 			for (let [x, cell] of cells.entries()) {
 				this.grid.set(x, y, cell === CELL_FLOOR_CHAR);
 				this.gridMatrix[y][x] = (cell === CELL_FLOOR_CHAR) ? 0 : -1;
+				this.influenceMatrix[y][x] = (cell === CELL_FLOOR_CHAR) ? 1 : -1;
 			}
 		}
 		this.myPacs = new Map<number, Pac>();
 		this.enemyPacs = new Map<number, Pac>();
 		this.allPellets = new Map<string, Pellet>();
 		initTimer.stop();
-		const visibleCellsTimer = new Timer('Walkable Cells Initialisation').start();
+		const visibleCellsTimer = new Timer('Walkable Cells Initialisation');
 		this.visibleCells = new Map<string, Set<Point>>();
 		this.neighbouringCells = new Map<string, Set<Point>>();
 		for (let y = 0; y < this.height; y++) {
@@ -71,6 +75,10 @@ export class State {
 
 	getGridMatrix(): number[][] {
 		return JSON.parse(JSON.stringify(this.gridMatrix));
+	}
+
+	getInflueceMatrix(): number[][] {
+		return JSON.parse(JSON.stringify(this.influenceMatrix));
 	}
 
 	initFirstTurnFromConsole(): void {
@@ -118,12 +126,12 @@ export class State {
 	}
 
 	updateFromConsole(): void {
-		const timer = new Timer('Inputs Update').start();
+		const timer = new Timer('Inputs Update');
 		this.turn++;
 		this.updateVisiblePacs();
 		this.updateVisiblePellets();
-		// this.deleteMyDeadPacs();
-		// this.deleteEnemyDeadPacs();
+		this.deleteMyDeadPacs();
+		this.deleteEnemyDeadPacs();
 		const pacLocations = [...this.myPacs.values()].map((pac) => pac.location.toString());
 		const visibleCellSets = pacLocations.map((pacLocation) => this.visibleCells.get(pacLocation));
 		const visibleCells = new Set(pacLocations.concat(visibleCellSets.reduce((arr, set) => [...arr, ...[...set.values()].map((point) => point.toString())], [] as string[])));
@@ -188,6 +196,7 @@ export class State {
 			}
 			const possibleCellsWeCantSee = possibleNeighbours.filter((neighbour) => !visibleCells.has(neighbour.toString()));
 			if (possibleCellsWeCantSee.length === 1) {
+				// TODO: Handle first turn
 				printErr(`Enemy ${enemy.id} could only have gone to ${possibleCellsWeCantSee[0]}... updating`);
 				enemy.location = possibleCellsWeCantSee[0];
 				enemy.speedTurnsLeft = Math.max(0, enemy.speedTurnsLeft - 1); // TODO: Extract this out and re-calc everyone
@@ -199,7 +208,7 @@ export class State {
 		for (let visibleCell of visibleCells) {
 			const pellet = this.allPellets.get(visibleCell);
 			if (pellet && pellet.age > 0) {
-				debug(`Deleting pellet ${visibleCell}`);
+				// debug(`Deleting pellet ${visibleCell}`);
 				this.allPellets.delete(visibleCell);
 			}
 		}
