@@ -46,10 +46,11 @@ function getPacInfluenceMatrix(pac: Pac, state: State, influenceRange: number, m
 	let neighbours = [pac.location];
 	let seen = [pac.location.toString()];
 	matrix[pac.location.y][pac.location.x] = 1-multiplier;
+	const otherPacLocations = [...state.myPacs.values()].filter((otherPac) => otherPac.id !== pac.id).concat([...state.enemyPacs.values()]).map((otherPac) => otherPac.location.toString());
 	for (let i = 1; i <= influenceRange; i++) {
 		neighbours = neighbours.reduce((newNeighbours, neighbour) => {
 			const neighbourNeighbours = [...state.neighbouringCells.get(neighbour.toString())];
-			return [...newNeighbours, ...neighbourNeighbours.filter((n) => !seen.includes(n.toString()))];
+			return [...newNeighbours, ...neighbourNeighbours.filter((n) => !seen.includes(n.toString()) && !otherPacLocations.includes(n.toString()))];
 		}, [] as Point[]);
 
 		const influenceValue = 1-Math.pow(multiplier, i+1);
@@ -74,30 +75,29 @@ function getPacScoreMatrix(pac: Pac, state: State, matrix: number[][], pelletSco
 	getPacScoreMatrix(pac, state, matrix, pelletScoreMatrix, pacInfluenceMatrices, currentDepth + 1, maxDepth, new Set([...checkedPoints.values(), ...nextPointsToCheck.map((point) => point.toString())]), neighbours);
 
 	if (currentDepth !== 0) {
-		const enemyPacs = [...state.enemyPacs.values()];
+		// const enemyPacs = [...state.enemyPacs.values()];
 		for (const point of nextPointsToCheck) {
 			const neighbours = [...state.neighbouringCells.get(point.toString()).values()].filter((cell) => !checkedPoints.has(cell.toString()));
 			const neighbourSum = neighbours.reduce((sum, neighbour) => sum + matrix[neighbour.y][neighbour.x], 0) || 0;
 			const distanceMultiplier = Math.pow(0.9, currentDepth);
-			const enemyInfluenceMultiplier = enemyPacs.reduce((multiplier, enemy) => {
-				const enemyDistanceToPellet = point.distanceTo(enemy.location);
-				let distanceModifier: number;
-				if (enemyDistanceToPellet > 3) {
-					distanceModifier = 1.0;
-				} else {
-					distanceModifier = Math.max(0.2, (0.360674 * Math.log(enemyDistanceToPellet)) + 0.2);
-					const ageModifier = (1-(Math.min(MAX_ENEMY_AGE_INFLUENCE, enemy.age)/MAX_ENEMY_AGE_INFLUENCE));
-					distanceModifier = 1 - ((1 - distanceModifier) * ageModifier);
-					// TODO: Type that beats us should have more influence. Type that we beat should have less.
-				}
-				return multiplier *= distanceModifier;
-			}, 1.0);
-			let pelletValueForPac = pelletScoreMatrix[point.y][point.x] * distanceMultiplier * enemyInfluenceMultiplier;
+			// const enemyInfluenceMultiplier = enemyPacs.reduce((multiplier, enemy) => {
+			// 	const enemyDistanceToPellet = point.distanceTo(enemy.location);
+			// 	let distanceModifier: number;
+			// 	if (enemyDistanceToPellet > 3) {
+			// 		distanceModifier = 1.0;
+			// 	} else {
+			// 		distanceModifier = Math.max(0.2, (0.360674 * Math.log(enemyDistanceToPellet)) + 0.2);
+			// 		const ageModifier = (1-(Math.min(MAX_ENEMY_AGE_INFLUENCE, enemy.age)/MAX_ENEMY_AGE_INFLUENCE));
+			// 		distanceModifier = 1 - ((1 - distanceModifier) * ageModifier);
+			// 		// TODO: Type that beats us should have more influence. Type that we beat should have less.
+			// 	}
+			// 	return multiplier *= distanceModifier;
+			// }, 1.0);
+			let pelletValueForPac = pelletScoreMatrix[point.y][point.x] * distanceMultiplier;// * enemyInfluenceMultiplier;
 			matrix[point.y][point.x] = (pelletValueForPac + (neighbourSum / (neighbours.length || 1)));
 			for (let influenceMatrix of pacInfluenceMatrices) {
 				// TODO: Don't include influence if they are behind us
 				// TODO: This can make a Pac get stuck in a corridor as it approaches a friendly pac
-				const tempVal = matrix[point.y][point.x];
 				matrix[point.y][point.x] = matrix[point.y][point.x] *= influenceMatrix[point.y][point.x];
 			}
 		}
@@ -201,15 +201,15 @@ export class Game {
 
 		// debug(`Pellet Value Graph: ${Buffer.from(JSON.stringify(pelletMatrix)).toString('base64')}`);
 		for (const matrix of pacMatrices) {
-			if (matrix.id !== 4 || state.turn < 10) {
+			if (matrix.id !== 2 || state.turn < 12) {
 				continue;
 			}
 			// const pac2 = state.myPacs.get(2);
 			// if (pac2.location.x !== 13 && pac2.location.y !== 9 && pac2.location.y !== 10) {
 			// 	continue;
 			// }
-			printErr(`Pellet Value Graph: ${Buffer.from(JSON.stringify(pelletMatrix)).toString('base64')}`);
-			// printErr(`Pac ${matrix.id} Value Graph: ${Buffer.from(JSON.stringify(matrix.matrix.map((row) => row.map((cell) => cell.toFixed(0))))).toString('base64')}`);
+			// printErr(`Pellet Value Graph: ${Buffer.from(JSON.stringify(pelletMatrix)).toString('base64')}`);
+			printErr(`Pac ${matrix.id} Value Graph: ${Buffer.from(JSON.stringify(matrix.matrix.map((row) => row.map((cell) => cell.toFixed(0))))).toString('base64')}`);
 			// printErr(`Pac Influence Graph: ${Buffer.from(JSON.stringify(myPacInfluenceMatrices.get(1).map((row) => row.map((cell) => cell)))).toString('base64')}`);
 			// printErr(`Pac Influence Graph: ${Buffer.from(JSON.stringify(enemyPacInfluenceMatrices.get(state.enemyPacs.get(1)).map((row) => row.map((cell) => cell)))).toString('base64')}`);
 		}
