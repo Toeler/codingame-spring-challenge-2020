@@ -1,26 +1,25 @@
-import { BitGrid } from '../node_modules/codingame-js-starter/src/lib/collections/bit-grid';
-import { readInt, readInts, readStrings } from './util';
-import { Point } from './Point';
-import { getVisibleCells } from './getVisibleCells';
+import { getNeighbouringPoints } from './getNeighbouringPoints';
+import { getVisiblePoints } from './getVisiblePoints';
+import { Graph } from './Graph';
 import { Pac } from './Pac';
-import { Pellet } from './Pellet';
-import { Timer } from './Timer';
-import { getNeighbouringCells } from './getNeighbouringCells';
-import { debug } from './util/debug';
 import { PacType } from './PacType';
+import { Pellet } from './Pellet';
+import { Point } from './Point';
+import { Timer } from './Timer';
+import { readInt, readInts, readStrings } from './util';
+import { debug } from './util/debug';
+import { permute } from './util/permutation';
 
 const CELL_STRING_SEPARATOR = '';
-const CELL_FLOOR_CHAR = ' ';
+const CELL_WALL_CHAR = '#';
 const DEFAULT_PELLET_VALUE = 1;
 const MY_ID = '1';
 const ENEMY_ID = '0';
+const WALL_VALUE = -1;
 
 export class State {
 	width: number;
 	height: number;
-	grid: BitGrid;
-	visibleCells: Map<string, Set<Point>>;
-	neighbouringCells: Map<string, Set<Point>>;
 
 	turn: number;
 
@@ -28,115 +27,165 @@ export class State {
 	opponentScore: number;
 
 	myPacs: Map<number, Pac>;
+	#myPacPermutations: Pac[][];
 	enemyPacs: Map<number, Pac>;
-	allPellets: Map<string, Pellet>;
+	#allPellets: Map<Point, Pellet>;
 
-	gridMatrix: number[][];
-	influenceMatrix: number[][];
+	#emptyGraph: Graph<number>;
+
+	#points: Map<string, Point>;
 
 	initFromConsole(): void {
 		[this.width, this.height] = readInts();
 		const initTimer = new Timer('Grid Initialisation');
-		this.grid = new BitGrid(this.width, this.height);
-		this.gridMatrix = [];
-		this.influenceMatrix = [];
+		this.#emptyGraph = new Graph(this.width, this.height);
+		this.#points = new Map<string, Point>();
 		for (let y = 0; y < this.height; y++) {
 			const cells = readStrings(CELL_STRING_SEPARATOR);
-			this.gridMatrix[y] = [];
-			this.influenceMatrix[y] = [];
 			for (let [x, cell] of cells.entries()) {
-				this.grid.set(x, y, cell === CELL_FLOOR_CHAR);
-				this.gridMatrix[y][x] = (cell === CELL_FLOOR_CHAR) ? 0 : -1;
-				this.influenceMatrix[y][x] = (cell === CELL_FLOOR_CHAR) ? 1 : -1;
+				const isWall = cell === CELL_WALL_CHAR;
+				this.#emptyGraph.setByCoord(x, y, isWall ? WALL_VALUE : 0);
+				if (!isWall) {
+					const point = new Point(x, y);
+					this.#points.set(point.toString(), point);
+				}
 			}
 		}
 		this.myPacs = new Map<number, Pac>();
 		this.enemyPacs = new Map<number, Pac>();
-		this.allPellets = new Map<string, Pellet>();
+		this.#allPellets = new Map<Point, Pellet>();
 		initTimer.stop();
 		const visibleCellsTimer = new Timer('Walkable Cells Initialisation');
-		this.visibleCells = new Map<string, Set<Point>>();
-		this.neighbouringCells = new Map<string, Set<Point>>();
-		for (let y = 0; y < this.height; y++) {
-			for (let x = 0; x < this.width; x++) {
-				if (this.grid.get(x, y)) { // isWalkable
-					const point = new Point(x, y);
-					this.visibleCells.set(point.toString(), getVisibleCells(this.grid, this.width, this.height, point));
-					this.neighbouringCells.set(point.toString(), getNeighbouringCells(this.grid, this.width, this.height, point));
-				}
-			}
+		for (let point of this.#points.values()) {
+			point.neighbours = getNeighbouringPoints(point, this.#emptyGraph, this.#points);
+		}
+		for (let point of this.#points.values()) {
+			point.visiblePoints = getVisiblePoints(point, this.#emptyGraph);
 		}
 		visibleCellsTimer.stop();
 	}
 
-	cellIsWalkable(x: number, y: number): boolean {
-		return this.grid.get(x, y);
+	getEmptyGraph(): Graph<number> {
+		return this.#emptyGraph.clone();
 	}
 
-	getGridMatrix(): number[][] {
-		return JSON.parse(JSON.stringify(this.gridMatrix));
+	getPoints(): Point[] {
+		return [...this.#points.values()];
 	}
 
-	getInflueceMatrix(): number[][] {
-		return JSON.parse(JSON.stringify(this.influenceMatrix));
+	private getPoint(x: number, y: number): Point {
+		return this.#points.get(Point.toString(x, y));
 	}
 
-	initFirstTurnFromConsole(): void {
+	getPellets(): Pellet[] {
+		return [...this.#allPellets.values()];
+	}
+
+	getSuperPellets(): Pellet[] {
+		return this.getPellets().filter((pellet) => pellet.value > DEFAULT_PELLET_VALUE);
+	}
+
+	getPellet(point: Point): Pellet {
+		return this.#allPellets.get(point);
+	}
+
+	getMyPacs(): Pac[] {
+		return [...this.myPacs.values()];
+	}
+
+	getEnemyPacs(): Pac[] {
+		return [...this.enemyPacs.values()];
+	}
+
+	getAllPacs(): Pac[] {
+		return this.getMyPacs().concat(this.getEnemyPacs());
+	}
+
+	private pointIsWalkable(x: number, y: number): boolean {
+		return this.#emptyGraph.getByCoord(x, y) !== WALL_VALUE;
+	}
+
+	private getMyVisiblePoints(): Point[] {
+		const uniqueVisiblePoints = new Set<Point>();
+		for (const pac of this.getMyPacs()) {
+			uniqueVisiblePoints.add(pac.location);
+			const visiblePoints = pac.location.visiblePoints;
+			for (const point of visiblePoints) {
+				uniqueVisiblePoints.add(point);
+			}
+		}
+		return [...uniqueVisiblePoints.values()];
+	}
+
+	public initFirstTurnFromConsole(): void {
 		const timer = new Timer('First Turn Setup');
 		this.turn = 1;
+		this.initAllPacs();
+		this.initAllPellets();
+		this.initVisiblePellets();
+		this.setPermutationOrder(Array.from(permute(this.getMyPacs())));
+		timer.stop();
+	}
+
+	private initAllPacs(): void {
 		const visiblePacCount = readInt();
 		for (let i = 0; i < visiblePacCount; i++) {
 			const inputs = readStrings();
 			const pacId = parseInt(inputs[0]);
 			const isMyPac = inputs[1] === MY_ID;
+			const location = this.getPoint(parseInt(inputs[2]), parseInt(inputs[3]));
 			let pac = new Pac();
 			(isMyPac ? this.myPacs : this.enemyPacs).set(pacId, pac);
-			pac.update(inputs);
+			pac.update(inputs, location);
 			if (isMyPac) {
 				const enemyPac = new Pac();
 				inputs[1] = ENEMY_ID;
 				inputs[2] = (this.width - parseInt(inputs[2]) - 1).toString();
 				debug(`Created enemy pac ${inputs[0]} at position ${inputs[2]} ${inputs[3]}`)
-				enemyPac.update(inputs);
+				enemyPac.update(inputs, location);
 				this.enemyPacs.set(pacId, enemyPac);
 			}
 		}
+	}
 
+	private initAllPellets(): void {
 		for (let y = 0; y < this.height; y++) {
 			for (let x = 0; x < this.width; x++) {
-				const point = new Point(x, y);
-				if (this.cellIsWalkable(x, y) && ![...this.myPacs.values(), ...this.enemyPacs.values()].some((pac) => pac.location.equals(point))) {
+				const point = this.getPoint(x, y);
+				if (this.pointIsWalkable(x, y) && !this.getAllPacs().some((pac) => pac.location.equals(point))) {
 					const pellet = new Pellet();
 					pellet.update(point, DEFAULT_PELLET_VALUE);
-					this.allPellets.set(point.toString(), pellet);
+					this.#allPellets.set(point, pellet);
 				}
 			}
 		}
+	}
 
+	private initVisiblePellets(): void {
 		const visiblePelletCount = readInt();
 		for (let i = 0; i < visiblePelletCount; i++) {
 			const inputs = readInts();
 			if (inputs[2] > DEFAULT_PELLET_VALUE) {
-				const point = new Point(inputs[0], inputs[1]);
-				const pellet = this.allPellets.get(point.toString());
+				const point = this.getPoint(inputs[0], inputs[1]);
+				const pellet = this.getPellet(point);
 				pellet.update(point, inputs[2]);
 			}
 		}
-		timer.stop();
 	}
 
-	updateFromConsole(): void {
+	public updateFromConsole(): void {
 		const timer = new Timer('Inputs Update');
 		this.turn++;
 		this.updateVisiblePacs();
 		this.updateVisiblePellets();
 		this.deleteMyDeadPacs();
-		this.deleteEnemyDeadPacs();
-		const pacLocations = [...this.myPacs.values()].map((pac) => pac.location.toString());
-		const visibleCellSets = pacLocations.map((pacLocation) => this.visibleCells.get(pacLocation));
-		const visibleCells = new Set(pacLocations.concat(visibleCellSets.reduce((arr, set) => [...arr, ...[...set.values()].map((point) => point.toString())], [] as string[])));
-		this.tryUpdateInvisiblePacs(visibleCells);
-		this.deleteEatenPellets(visibleCells);
+		const visiblePoints = this.getMyVisiblePoints();
+		if (this.turn > 2) {
+			// At the start of turn 2 all enemy pacs we can't see will have age === 1 but they may have used an ability so we can't be certain they moved
+			this.tryUpdateInvisiblePacs(visiblePoints); // This runs first as it is looking at the enemy's data from last turn
+			this.decrementInvisiblePacsCooldowns();
+		}
+		this.deleteEatenPellets(visiblePoints);
 		timer.stop();
 	}
 
@@ -151,13 +200,15 @@ export class State {
 			const pacId = parseInt(inputs[0]);
 			const isMyPac = inputs[1] === MY_ID;
 			const isDead = inputs[4] as PacType === PacType.DEAD;
+			const location = this.getPoint(parseInt(inputs[2]), parseInt(inputs[3]));
 			const pac = isMyPac ? this.myPacs.get(pacId) : this.enemyPacs.get(pacId);
 			if (isDead) {
 				if (pac) {
-					isMyPac ? this.myPacs.delete(pacId) : this.enemyPacs.delete(pacId)
+					isMyPac ? this.myPacs.delete(pacId) : this.enemyPacs.delete(pacId);
+					this.setPermutationOrder(Array.from(permute(this.getMyPacs())));
 				}
 			} else {
-				pac.update(inputs);
+				pac.update(inputs, location);
 			}
 		}
 	}
@@ -166,8 +217,8 @@ export class State {
 		const visiblePelletCount = readInt();
 		for (let i = 0; i < visiblePelletCount; i++) {
 			const inputs = readInts();
-			const point = new Point(inputs[0], inputs[1]);
-			const pellet = this.allPellets.get(point.toString());
+			const point = this.getPoint(inputs[0], inputs[1]);
+			const pellet = this.getPellet(point);
 			if (!pellet) {
 				printErr(`No pellet at ${point}`);
 			}
@@ -184,44 +235,62 @@ export class State {
 		}
 	}
 
-	private deleteEnemyDeadPacs() {
-		// TODO
-	}
-
-	private tryUpdateInvisiblePacs(visibleCells: Set<string>) {
-		for (let enemy of [...this.enemyPacs.values()].filter((enemy) => enemy.age === 1)) {
-			let possibleNeighbours = [...this.neighbouringCells.get(enemy.location.toString()).values()];
+	// If we could see an enemy last turn but not this turn and there is only one place they could have gone then update their position internally
+	// - This needs a bit of work as there are cases where the enemy wouldn't have moved
+	private tryUpdateInvisiblePacs(visiblePoints: Point[]) {
+		for (const enemy of this.getEnemyPacs().filter((enemy) => enemy.age === 1)) {
+			let possiblePositions = enemy.location.neighbours;
 			if (enemy.speedTurnsLeft > 0) {
-				possibleNeighbours = [...possibleNeighbours, ...possibleNeighbours.reduce((neighbourNeighbours, neighbour) => [...neighbourNeighbours, ...this.neighbouringCells.get(neighbour.toString()).values()], [] as Point[])];
+				for (const position of possiblePositions) {
+					possiblePositions = possiblePositions.concat(position.neighbours)
+				}
 			}
-			const possibleCellsWeCantSee = possibleNeighbours.filter((neighbour) => !visibleCells.has(neighbour.toString()));
-			if (possibleCellsWeCantSee.length === 1) {
-				// TODO: Handle first turn
-				printErr(`Enemy ${enemy.id} could only have gone to ${possibleCellsWeCantSee[0]}... updating`);
-				enemy.location = possibleCellsWeCantSee[0];
-				enemy.speedTurnsLeft = Math.max(0, enemy.speedTurnsLeft - 1); // TODO: Extract this out and re-calc everyone
+
+			const possiblePointsWeCantSee = possiblePositions.filter((position) => !visiblePoints.includes(position));
+			if (possiblePositions.length === 1) {
+				printErr(`Enemy ${enemy.id} could only have gone to ${possiblePointsWeCantSee[0]}... updating`);
+				enemy.location = possiblePointsWeCantSee[0];
 			}
 		}
 	}
 
-	private deleteEatenPellets(visibleCells: Set<string>) {
-		for (let visibleCell of visibleCells) {
-			const pellet = this.allPellets.get(visibleCell);
+	private decrementInvisiblePacsCooldowns() {
+		for (const enemy of this.getEnemyPacs().filter((enemy) => enemy.age > 0 && enemy.abilityCooldown > 0)) {
+			enemy.abilityCooldown = Math.max(0, enemy.abilityCooldown - 1);
+			enemy.speedTurnsLeft = Math.max(0, enemy.speedTurnsLeft - 1);
+		}
+	}
+
+	private deleteEatenPellets(visiblePoints: Point[]) {
+		for (const point of visiblePoints) {
+			const pellet = this.getPellet(point);
 			if (pellet && pellet.age > 0) {
 				// debug(`Deleting pellet ${visibleCell}`);
-				this.allPellets.delete(visibleCell);
+				this.#allPellets.delete(point);
+			}
+		}
+		for (const pellet of this.getSuperPellets()) {
+			if (pellet.age > 0) {
+				debug(`Deleting super pellet ${pellet.location}`);
+				this.#allPellets.delete(pellet.location);
 			}
 		}
 	}
 
 	age(): void {
-		this.myPacs.forEach(pac => pac.increaseAge());
-		this.enemyPacs.forEach(pac => pac.increaseAge());
-		this.allPellets.forEach(pellet => pellet.increaseAge());
+		for (const pac of this.getAllPacs()) {
+			pac.increaseAge();
+		}
+		for (const pellet of this.getPellets()) {
+			pellet.increaseAge();
+		}
 	}
 
-	clone(): State {
-		// TODO
-		return this;
+	public getPermutationOrder(): Pac[][] {
+		return this.#myPacPermutations;
+	}
+
+	public setPermutationOrder(pacs: Pac[][]): void {
+		this.#myPacPermutations = pacs;
 	}
 }

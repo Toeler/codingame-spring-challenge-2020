@@ -2,7 +2,6 @@ import { performance, PerformanceObserver } from 'perf_hooks';
 import { debug } from "./util/debug";
 
 export class Timer {
-	#start: [number, number];
 	#startName: string;
 	#endName: string;
 	constructor(protected name: string) {
@@ -22,18 +21,13 @@ export class Timer {
 		this.start();
 	}
 
-	start(): Timer {
+	private start(): Timer {
 		performance.mark(this.#startName);
 		return this;
 	}
 
-	stop(): number {
+	stop() {
 		performance.mark(this.#endName);
 		performance.measure(this.name, this.#startName, this.#endName);
-		// const measure = performance.getEntriesByName(this.name)[0];
-		// const elapsedMs = measure.duration;
-		// debug(`${this.name} took ${elapsedMs}ms`);
-		// return elapsedMs;
-		return 0;
 	}
 }

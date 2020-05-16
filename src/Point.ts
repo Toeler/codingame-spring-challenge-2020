@@ -1,6 +1,10 @@
 export class Point {
+	public neighbours: Point[];
+	public visiblePoints: Point[]
+	
 	constructor(public x: number, public y: number) {}
 
+	// Manhattan Distance
 	public distanceTo(otherLocation: Point) {
 		const x = this.x - otherLocation.x;
 		const y = this.y - otherLocation.y;

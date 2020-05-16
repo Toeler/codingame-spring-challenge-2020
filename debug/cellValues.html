@@ -98,8 +98,9 @@
 				if (string.includes(': ')) {
 					string = string.split(': ')[1];
 				}
-				const decoded = atob(string);
-				const matrix = JSON.parse(decoded);
+				//const decoded = atob(string);
+				//const matrix = JSON.parse(decoded);
+				const matrix = JSON.parse(string);
 
 				const highestValue = matrix.reduce((highestValue, row) => {
 					const rowHighestValue = row.reduce((highestValue, next) => parseFloat(next) > highestValue ? parseFloat(next) : highestValue, 0);
@@ -114,6 +115,11 @@
 						const element = document.createElement('td');
 						const value = parseFloat(matrix[y][x]);
 						switch (value) {
+							case -3:
+								{
+									element.style.backgroundColor = 'rgb(255, 255, 255)';
+									break;
+								}
 							case -2:
 								{
 									element.style.backgroundColor = 'rgb(255, 0, 255)';

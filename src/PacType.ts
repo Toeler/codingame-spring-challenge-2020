@@ -6,7 +6,7 @@ export enum PacType {
 };
 
 export namespace PacType {
-	export function getLoseTo(type: PacType) {
+	export function getCounter(type: PacType) {
 		switch (type) {
 			case PacType.ROCK: {
 				return PacType.PAPER;
@@ -16,20 +16,6 @@ export namespace PacType {
 			}
 			case PacType.SCISSORS: {
 				return PacType.ROCK;
-			}
-		}
-	}
-
-	export function getWinTo(type: PacType) {
-		switch (type) {
-			case PacType.ROCK: {
-				return PacType.SCISSORS;
-			}
-			case PacType.PAPER: {
-				return PacType.ROCK;
-			}
-			case PacType.SCISSORS: {
-				return PacType.PAPER;
 			}
 		}
 	}
