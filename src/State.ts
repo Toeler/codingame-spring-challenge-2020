@@ -135,7 +135,8 @@ export class State {
 		const pacLocations = [...this.myPacs.values()].map((pac) => pac.location.toString());
 		const visibleCellSets = pacLocations.map((pacLocation) => this.visibleCells.get(pacLocation));
 		const visibleCells = new Set(pacLocations.concat(visibleCellSets.reduce((arr, set) => [...arr, ...[...set.values()].map((point) => point.toString())], [] as string[])));
-		this.tryUpdateInvisiblePacs(visibleCells);
+		//this.tryUpdateInvisiblePacs(visibleCells);
+		this.updatePelletsFromEnemyLocation();
 		this.deleteEatenPellets(visibleCells);
 		timer.stop();
 	}
@@ -200,6 +201,75 @@ export class State {
 				printErr(`Enemy ${enemy.id} could only have gone to ${possibleCellsWeCantSee[0]}... updating`);
 				enemy.location = possibleCellsWeCantSee[0];
 				enemy.speedTurnsLeft = Math.max(0, enemy.speedTurnsLeft - 1); // TODO: Extract this out and re-calc everyone
+			}
+		}
+	}
+
+	public updatePelletsFromEnemyLocation() {
+		for (let enemy of this.enemyPacs.values()) {
+			if (enemy.age === 0 && enemy.previousAge > 1) {
+				// We know their current position and last position, time to calculate a path
+				const turnsMissing = enemy.previousAge - enemy.age;
+				if (turnsMissing <= 10) {
+					let maxSpacesTravelled = turnsMissing;
+					if (enemy.speedTurnsLeft) {
+						if (!enemy.previousSpeedTurnsLeft) {
+							maxSpacesTravelled += ((5 - enemy.speedTurnsLeft) - 1);
+						} else {
+							if (turnsMissing > 5) {
+								maxSpacesTravelled += enemy.previousSpeedTurnsLeft - (4-enemy.speedTurnsLeft);
+							} else {
+								maxSpacesTravelled += (enemy.previousSpeedTurnsLeft - enemy.speedTurnsLeft);
+							}
+						}
+					} else if (enemy.previousSpeedTurnsLeft) {
+						maxSpacesTravelled += enemy.previousSpeedTurnsLeft;
+					} else if (enemy.abilityCooldown && !enemy.previousAbilityCooldown && enemy.typeId === enemy.previousTypeId) {
+						maxSpacesTravelled += 4;
+					}
+
+					debug(`Haven't seen ${enemy.id} in ${turnsMissing} turns. Could have travelled ${maxSpacesTravelled} spaces. Calculating path.`);
+					let possiblePaths: Point[][] = [[enemy.previousLocation]];
+
+					for (let turn = 0; turn < maxSpacesTravelled; turn++) {
+						const newPaths: Point[][] = [];
+						for (const path of possiblePaths) {
+							const neighbours = [...this.neighbouringCells.get(path[path.length - 1].toString()).values()].filter((n) => !path.some((x) => x.equals(n)));
+							let idx = 1;
+							for (const neighbour of neighbours) {
+								if (idx === neighbours.length) {
+									path.push(neighbour);
+								} else {
+									newPaths.push([...path, neighbour]);
+								}
+								idx++;
+							}
+						}
+						possiblePaths = possiblePaths.concat(newPaths);
+					}
+
+					const enemyPaths = possiblePaths.filter((path) => path[path.length - 1].equals(enemy.location));
+					debug(`Enemy ${enemy.id} could have taken ${enemyPaths.length} paths from ${enemy.previousLocation.toString()} to ${enemy.location.toString()}`);
+
+					const allPoints: object = {};
+					for (const path of enemyPaths) {
+						for (const point of path) {
+							allPoints[point.toString()] = (allPoints[point.toString()] || 0) + 1;
+						}
+					}
+
+					const commonPoints: string[] = [];
+					for (const point in allPoints) {
+						if (allPoints[point] === enemyPaths.length) {
+							commonPoints.push(point);
+						}
+					}
+
+					debug(`Found ${commonPoints.length} common points in all paths, deleting pellets: ${commonPoints.join('|')}`);
+					for (const point of commonPoints) {
+						this.allPellets.delete(point);
+					}
+				}
 			}
 		}
 	}

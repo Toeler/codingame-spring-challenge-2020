@@ -139,7 +139,10 @@ export class Game {
 							break;
 						}
 						case pac.typeId: {
-							actions.push(pac.switchType(PacType.getLoseTo(enemy.typeId)));
+							// if (enemy.abilityCooldown > 1) {
+							// 	actions.push(pac.switchType(PacType.getLoseTo(enemy.typeId)));
+							// }
+							actions.push(pac.startSpeed());
 							break;
 						}
 						default: { // We win
@@ -157,7 +160,6 @@ export class Game {
 			} else {
 				if (pac.speedTurnsLeft > 0 && nearbyEnemies.length) {
 					const enemy = nearbyEnemies[0];
-					printErr(`Enemy at ${enemy.location}`);
 					if (enemy.speedTurnsLeft === 0 && enemy.abilityCooldown > 1 && PacType.getLoseTo(enemy.typeId) === pac.typeId) {
 						actions.push(pac.moveTo(enemy.location));
 						continue;
@@ -201,6 +203,24 @@ export class Game {
 				
 				// const pacDirectionTimer = new Timer(`Pac ${pac.id} Direction Selection`);
 				for (let neighbour of neighbours) {
+					// const cellsToCheckForEnemy: Point[] = [neighbour];
+					// if (neighbour.distanceTo(pac.location) === 2) {
+					// 	// Need to check the space between us
+					// 	const between = [...state.neighbouringCells.get(neighbour.toString()).values()].filter((x) => x.distanceTo(pac.location) === 1);
+					// 	if (between[0]) {
+					// 		cellsToCheckForEnemy.push(between[0]);
+					// 	}
+					// }
+					// let couldDieToEnemy = false;
+					// for (const enemy of state.enemyPacs.values()) {
+					// 	if (enemy.abilityCooldown === 0 && cellsToCheckForEnemy.some((x) => x.equals(enemy.location))) {
+					// 		couldDieToEnemy = true;
+					// 	}
+					// }
+					// if (couldDieToEnemy) {
+					// 	continue;
+					// }
+
 					const neighbourValue = pacMatrix[neighbour.y][neighbour.x];
 					if (!highestValueDirection || neighbourValue > pacMatrix[highestValueDirection.y][highestValueDirection.x]) {
 						// TODO: Handle crossing paths with our own pac. This only checks moving 1 tile at a time
@@ -223,7 +243,7 @@ export class Game {
 
 		// debug(`Pellet Value Graph: ${Buffer.from(JSON.stringify(pelletMatrix)).toString('base64')}`);
 		for (const matrix of pacMatrices) {
-			if (matrix.id !== 1 || state.turn < 0) {
+			if (matrix.id !== 1 || state.turn < 42) {
 				continue;
 			}
 			// const pac2 = state.myPacs.get(2);
@@ -232,7 +252,7 @@ export class Game {
 			// }
 			// printErr(`Pellet Value Graph: ${Buffer.from(JSON.stringify(pelletMatrix)).toString('base64')}`);
 			// printErr(`Pellet Value Graph: ${JSON.stringify(pelletMatrix.map((row) => row.map((cell) => cell.toFixed(0))))}`);
-			// printErr(`Pac ${matrix.id} Value Graph: ${Buffer.from(JSON.stringify(matrix.matrix.map((row) => row.map((cell) => cell.toFixed(0))))).toString('base64')}`);
+			printErr(`Pac ${matrix.id} Value Graph: ${Buffer.from(JSON.stringify(matrix.matrix.map((row) => row.map((cell) => cell.toFixed(0))))).toString('base64')}`);
 			// printErr(`Pac Influence Graph: ${Buffer.from(JSON.stringify(myPacInfluenceMatrices.get(1).map((row) => row.map((cell) => cell)))).toString('base64')}`);
 			// printErr(`Pac Influence Graph: ${Buffer.from(JSON.stringify(enemyPacInfluenceMatrices.get(state.enemyPacs.get(0)).map((row) => row.map((cell) => cell)))).toString('base64')}`);
 		}
