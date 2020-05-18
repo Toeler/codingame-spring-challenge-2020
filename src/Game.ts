@@ -11,7 +11,7 @@ const ENEMY_INFLUENCE_RADIUS = 3.0;
 const MAX_ENEMY_AGE_INFLUENCE = 10;
 const FRIENDLY_PAC_INFLUENCE_RANGE = 7;
 const FRIENDLY_PAC_MULTIPLIER = 0.8;
-const ENEMY_PAC_INFLUENCE_RANGE = 7;
+const ENEMY_PAC_INFLUENCE_RANGE = 4;
 const ENEMY_PAC_MULTIPLIER = 0.8;
 
 function getPelletsInRange(center: Point, pellets: Map<string, Pellet>, mapWidth: number, mapHeight: number, distance: number): Pellet[] {
@@ -40,7 +40,7 @@ function getPelletScoreMatrix(emptyMatrix: number[][], allPellets: Map<string, P
 	return matrix;
 }
 
-function getPacInfluenceMatrix(pac: Pac, state: State, influenceRange: number, multiplier: number): number[][] {
+function getPacInfluenceMatrix(pac: Pac, state: State, influenceRange: number, multiplier: number, offset: number = 0): number[][] {
 	const matrix = state.getInflueceMatrix();
 
 	let neighbours = [pac.location];
@@ -53,7 +53,7 @@ function getPacInfluenceMatrix(pac: Pac, state: State, influenceRange: number, m
 			return [...newNeighbours, ...neighbourNeighbours.filter((n) => !seen.includes(n.toString()) && !otherPacLocations.includes(n.toString()))];
 		}, [] as Point[]);
 
-		const influenceValue = 1-Math.pow(multiplier, i+1);
+		const influenceValue = 1-Math.pow(multiplier, i+1) + offset;
 		for (const neighbour of neighbours) {
 			matrix[neighbour.y][neighbour.x] = influenceValue;
 			seen.push(neighbour.toString());
@@ -117,7 +117,7 @@ export class Game {
 			myPacInfluenceMatrices.set(pac.id, getPacInfluenceMatrix(pac, state, FRIENDLY_PAC_INFLUENCE_RANGE, FRIENDLY_PAC_MULTIPLIER));
 		}
 		for (const enemy of state.enemyPacs.values()) {
-			enemyPacInfluenceMatrices.set(enemy, getPacInfluenceMatrix(enemy, state, ENEMY_PAC_INFLUENCE_RANGE, ENEMY_PAC_MULTIPLIER));
+			enemyPacInfluenceMatrices.set(enemy, getPacInfluenceMatrix(enemy, state, ENEMY_PAC_INFLUENCE_RANGE, ENEMY_PAC_MULTIPLIER, -0.2));
 		}
 
 		const enemyPacs = [...state.enemyPacs.values()];
@@ -127,41 +127,50 @@ export class Game {
 			const pacTimer = new Timer(`Pac ${pac.id} turn`);
 
 			let neighbours: Point[] = [...state.neighbouringCells.get(pac.location.toString()).values()];
-			let nearbyEnemies: Pac[] = enemyPacs.filter((enemy) => neighbours.some((point) => point.equals(enemy.location)));
+			let nearbyEnemies: Pac[] = enemyPacs.filter((enemy) => enemy.age < 2 && neighbours.some((point) => point.equals(enemy.location) || [...state.neighbouringCells.get(point.toString())].some((point2) => point2.equals(enemy.location))));
 			if (pac.abilityCooldown === 0) {
 				if (nearbyEnemies.length) {
 					// TODO: handle more than 1 nearby enemy
 					printErr(`${nearbyEnemies.length} nearby enemies`);
-					switch (nearbyEnemies[0].typeId) {
+					const enemy = nearbyEnemies[0];
+					switch (enemy.typeId) {
 						case PacType.getLoseTo(pac.typeId): {
-							actions.push(pac.switchType(PacType.getLoseTo(nearbyEnemies[0].typeId)));
+							actions.push(pac.switchType(PacType.getLoseTo(enemy.typeId)));
 							break;
 						}
 						case pac.typeId: {
-							actions.push(pac.switchType(PacType.getLoseTo(nearbyEnemies[0].typeId)));
+							actions.push(pac.switchType(PacType.getLoseTo(enemy.typeId)));
 							break;
 						}
 						default: { // We win
-							printErr(`Eat enemy ${nearbyEnemies[0].id}`);
-							actions.push(pac.moveTo(nearbyEnemies[0].location));
+							actions.push(pac.startSpeed());
+							// if (enemy.speedTurnsLeft === 0 && enemy.abilityCooldown > 0) {
+							// 	printErr(`Eat enemy ${enemy.id}`);
+							// 	actions.push(pac.moveTo(enemy.location));
+							// } else {
+							// }
 						}
 					}
 				} else {
 					actions.push(pac.startSpeed());
 				}
 			} else {
+				if (pac.speedTurnsLeft > 0 && nearbyEnemies.length) {
+					const enemy = nearbyEnemies[0];
+					printErr(`Enemy at ${enemy.location}`);
+					if (enemy.speedTurnsLeft === 0 && enemy.abilityCooldown > 1 && PacType.getLoseTo(enemy.typeId) === pac.typeId) {
+						actions.push(pac.moveTo(enemy.location));
+						continue;
+					}
+				}
+
 				const pacMatrix: number[][] = state.getGridMatrix();
+				const pelletMatrixForPac: number[][] = JSON.parse(JSON.stringify(pelletMatrix));
 				const NUMBER_TURNS_TO_CONSIDER = 30;
 				const checkedCells = new Set<string>();
 				// TODO: Treat different enemy types differently
-				const otherPacInfluence = [...myPacInfluenceMatrices].filter(([pacId]) => pacId !== pac.id).map(([_, matrix]) => matrix).concat([...enemyPacInfluenceMatrices.values()]);
+				const otherPacInfluence = [...myPacInfluenceMatrices].filter(([pacId]) => pacId !== pac.id).map(([_, matrix]) => matrix).concat([...enemyPacInfluenceMatrices.keys()].filter((enemy) => PacType.getLoseTo(pac.typeId) === enemy.typeId).map((enemy) => enemyPacInfluenceMatrices.get(enemy)));
 				// const pacScoreTimer = new Timer(`Pac ${pac.id} Score Matrix`);
-				getPacScoreMatrix(pac, state, pacMatrix, pelletMatrix, otherPacInfluence, 0, NUMBER_TURNS_TO_CONSIDER, checkedCells, [pac.location]);
-				// pacScoreTimer.stop();
-				pacMatrices.push({ id: pac.id, matrix: pacMatrix });
-
-				let highestValueDirection: Point;
-				let action: Action = pac.moveTo(pac.location);
 				if (pac.speedTurnsLeft > 0) {
 					// We're moving 2 spaces
 					// TODO: Move this up out of the else so we can attack 2 spaces
@@ -174,12 +183,22 @@ export class Game {
 						}
 						for (const nextNeighbour of nextNeighbours) {
 							// If we are movng through a point to another, then the second point should include the value of the one we pass through
-							pacMatrix[nextNeighbour.y][nextNeighbour.x] += pelletMatrix[neighbour.y][neighbour.x];
+							pelletMatrixForPac[nextNeighbour.y][nextNeighbour.x] += pelletMatrixForPac[neighbour.y][neighbour.x];
 							//pacMatrix[nextNeighbour.y][nextNeighbour.x] += pacMatrix[neighbour.y][neighbour.x];
 						}
 						return nextNeighbours;
 					}).reduce((allNeighbours, neighbour) => [...allNeighbours, ...neighbour.values()], [] as Point[]);
 				}
+				if (pac.id === 1 && state.turn > 0 && state.turn < 3) {
+					// printErr(JSON.stringify(pelletMatrixForPac.map((row) => row.map((cell) => cell.toFixed(0)))));
+				}
+				getPacScoreMatrix(pac, state, pacMatrix, pelletMatrixForPac, otherPacInfluence, 0, NUMBER_TURNS_TO_CONSIDER, checkedCells, [pac.location]);
+				// pacScoreTimer.stop();
+				pacMatrices.push({ id: pac.id, matrix: pacMatrix });
+
+				let highestValueDirection: Point;
+				let action: Action = pac.moveTo(pac.location);
+				
 				// const pacDirectionTimer = new Timer(`Pac ${pac.id} Direction Selection`);
 				for (let neighbour of neighbours) {
 					const neighbourValue = pacMatrix[neighbour.y][neighbour.x];
@@ -192,6 +211,9 @@ export class Game {
 						}
 					}
 				}
+				if (pac.id === 0) {
+					// printErr(pelletMatrixForPac.filter((_, rowNum) => rowNum > 1 && rowNum < 7 ).map((row, rowNum) => row.filter((_, colNum) => colNum > 21 && colNum < 29).map((col, colNum) => `${colNum + 22}, ${rowNum + 2} = ${col}`).join('\n')).join('\n'));
+				}
 				// pacDirectionTimer.stop();
 				actions.push(action);
 			}
@@ -201,7 +223,7 @@ export class Game {
 
 		// debug(`Pellet Value Graph: ${Buffer.from(JSON.stringify(pelletMatrix)).toString('base64')}`);
 		for (const matrix of pacMatrices) {
-			if (matrix.id !== 2 || state.turn < 12) {
+			if (matrix.id !== 1 || state.turn < 0) {
 				continue;
 			}
 			// const pac2 = state.myPacs.get(2);
@@ -209,9 +231,10 @@ export class Game {
 			// 	continue;
 			// }
 			// printErr(`Pellet Value Graph: ${Buffer.from(JSON.stringify(pelletMatrix)).toString('base64')}`);
-			printErr(`Pac ${matrix.id} Value Graph: ${Buffer.from(JSON.stringify(matrix.matrix.map((row) => row.map((cell) => cell.toFixed(0))))).toString('base64')}`);
+			// printErr(`Pellet Value Graph: ${JSON.stringify(pelletMatrix.map((row) => row.map((cell) => cell.toFixed(0))))}`);
+			// printErr(`Pac ${matrix.id} Value Graph: ${Buffer.from(JSON.stringify(matrix.matrix.map((row) => row.map((cell) => cell.toFixed(0))))).toString('base64')}`);
 			// printErr(`Pac Influence Graph: ${Buffer.from(JSON.stringify(myPacInfluenceMatrices.get(1).map((row) => row.map((cell) => cell)))).toString('base64')}`);
-			// printErr(`Pac Influence Graph: ${Buffer.from(JSON.stringify(enemyPacInfluenceMatrices.get(state.enemyPacs.get(1)).map((row) => row.map((cell) => cell)))).toString('base64')}`);
+			// printErr(`Pac Influence Graph: ${Buffer.from(JSON.stringify(enemyPacInfluenceMatrices.get(state.enemyPacs.get(0)).map((row) => row.map((cell) => cell)))).toString('base64')}`);
 		}
 
 

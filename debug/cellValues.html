@@ -98,8 +98,13 @@
 				if (string.includes(': ')) {
 					string = string.split(': ')[1];
 				}
-				const decoded = atob(string);
-				const matrix = JSON.parse(decoded);
+				let matrix;
+				try {
+					const decoded = atob(string);
+					matrix = JSON.parse(decoded);
+				} catch (e) {
+					matrix = JSON.parse(string);
+				}
 
 				const highestValue = matrix.reduce((highestValue, row) => {
 					const rowHighestValue = row.reduce((highestValue, next) => parseFloat(next) > highestValue ? parseFloat(next) : highestValue, 0);

@@ -212,6 +212,11 @@ export class State {
 				this.allPellets.delete(visibleCell);
 			}
 		}
+		for (let pellet of this.allPellets.values()) {
+			if (pellet.value > DEFAULT_PELLET_VALUE && pellet.age > 1) {
+				this.allPellets.delete(pellet.location.toString());
+			}
+		}
 	}
 
 	age(): void {
